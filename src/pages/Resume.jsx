@@ -4,6 +4,29 @@ import { Link } from "react-router-dom";
 import API from "../services/api";
 import "./Resume.css";
 
+const saveLatestResumeAnalysis = (analysis, userId, selectedTargetRole) => {
+    const latestAnalysis = {
+        ...analysis,
+        targetRole: analysis?.targetRole || selectedTargetRole
+    };
+
+    localStorage.setItem("resumeAnalysis", JSON.stringify(latestAnalysis));
+    localStorage.setItem("resumeAnalysisUserId", String(userId));
+    window.dispatchEvent(
+        new CustomEvent("resumeAnalysisUpdated", {
+            detail: latestAnalysis
+        })
+    );
+
+    return latestAnalysis;
+};
+
+const clearSavedResumeAnalysis = () => {
+    localStorage.removeItem("resumeAnalysis");
+    localStorage.removeItem("resumeAnalysisUserId");
+    window.dispatchEvent(new Event("resumeAnalysisUpdated"));
+};
+
 function Resume() {
     const [file, setFile] = useState(null);
     const [uploading, setUploading] = useState(false);
@@ -101,6 +124,7 @@ function Resume() {
             setFile(null);
             setAnalysis(null);
             setAnalysisError("");
+            clearSavedResumeAnalysis();
 
             const input = document.getElementById("resume-input");
             if (input) input.value = "";
@@ -142,7 +166,13 @@ function Resume() {
                 }
             );
 
-            setAnalysis(response.data);
+            const latestAnalysis = saveLatestResumeAnalysis(
+                response.data,
+                userId,
+                targetRole
+            );
+
+            setAnalysis(latestAnalysis);
         } catch (error) {
             console.error("Resume analysis error:", error);
 
@@ -785,4 +815,3 @@ function Resume() {
 }
 
 export default Resume;
-

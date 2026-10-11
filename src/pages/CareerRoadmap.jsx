@@ -161,7 +161,9 @@ function CareerRoadmap() {
         if (cancelled) return;
         setProfile(profileData);
 
-        const role = normalizeRole(profileData?.careerGoal);
+        const role = normalizeRole(
+    analysis?.targetRole || profile?.careerGoal
+);
         try {
           const resumeResponse = await API.post(`/resume/analyze/${userId}`, null, {
             params: { targetRole: role },

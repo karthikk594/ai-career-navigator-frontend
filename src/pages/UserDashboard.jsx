@@ -1,11 +1,31 @@
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import "./Dashboard.css";
 import { useEffect, useState } from "react";
 import API from "../services/api";
 
+const readStoredResumeAnalysis = () => {
+
+    const savedAnalysis = localStorage.getItem("resumeAnalysis");
+
+    if (!savedAnalysis) {
+        return null;
+    }
+
+    try {
+        return JSON.parse(savedAnalysis);
+    }
+    catch (error) {
+        console.log("RESUME ANALYSIS STORAGE ERROR:", error);
+        localStorage.removeItem("resumeAnalysis");
+        return null;
+    }
+
+};
+
 function UserDashboard() {
 
     const navigate = useNavigate();
+    const location = useLocation();
 
     const [user, setUser] = useState(() => {
 
@@ -31,11 +51,60 @@ function UserDashboard() {
     });
     const [profile, setProfile] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [resumeAnalysis, setResumeAnalysis] = useState(null);
-    const [resumeLoading, setResumeLoading] = useState(true);
-
+    const [resumeAnalysis, setResumeAnalysis] = useState(() => readStoredResumeAnalysis());
+    const [resumeLoading, setResumeLoading] = useState(false);
     const userId = localStorage.getItem("userId");
 
+    useEffect(()=>{
+
+    const saved =
+        localStorage.getItem("resumeAnalysis");
+
+    if(saved){
+
+        setResumeAnalysis(
+            JSON.parse(saved)
+        );
+
+    }
+
+},[]);
+
+    useEffect(() => {
+
+        const syncResumeAnalysis = () => {
+
+            setResumeAnalysis(readStoredResumeAnalysis());
+            setResumeLoading(false);
+
+        };
+
+        const handleStorage = (event) => {
+
+            if (event.key === "resumeAnalysis") {
+                syncResumeAnalysis();
+            }
+
+        };
+
+        syncResumeAnalysis();
+
+        window.addEventListener("focus", syncResumeAnalysis);
+        window.addEventListener("pageshow", syncResumeAnalysis);
+        window.addEventListener("storage", handleStorage);
+        window.addEventListener("resumeAnalysisUpdated", syncResumeAnalysis);
+
+        return () => {
+
+            window.removeEventListener("focus", syncResumeAnalysis);
+            window.removeEventListener("pageshow", syncResumeAnalysis);
+            window.removeEventListener("storage", handleStorage);
+            window.removeEventListener("resumeAnalysisUpdated", syncResumeAnalysis);
+
+        };
+
+    }, [location.key, location.pathname]);
+    
     // =========================
     // GET USER DETAILS
     // =========================
@@ -111,73 +180,6 @@ function UserDashboard() {
             });
 
     }, [userId]);
-
-
-    // =========================
-    // GET RESUME ANALYSIS
-    // =========================
-
-    useEffect(() => {
-
-        let cancelled = false;
-
-        const fetchResumeAnalysis = async () => {
-
-            if (!userId) {
-                setResumeAnalysis(null);
-                setResumeLoading(false);
-                return;
-            }
-
-            try {
-                setResumeLoading(true);
-
-                // First check whether the user has a saved resume.
-                const resumeResponse = await API.get(`/resume/${userId}`);
-
-                if (cancelled) return;
-
-                if (!resumeResponse.data?.id) {
-                    setResumeAnalysis(null);
-                    return;
-                }
-
-                // Analyze the saved resume for the selected default role.
-                const analysisResponse = await API.post(
-                    `/resume/analyze/${userId}`,
-                    null,
-                    {
-                        params: {
-                            targetRole: roadmapTargetRole
-                        }
-                    }
-                );
-
-                if (!cancelled) {
-                    setResumeAnalysis(analysisResponse.data);
-                }
-
-            } catch (error) {
-                console.error("DASHBOARD RESUME ANALYSIS ERROR:", error);
-
-                if (!cancelled) {
-                    setResumeAnalysis(null);
-                }
-
-            } finally {
-                if (!cancelled) {
-                    setResumeLoading(false);
-                }
-            }
-        };
-
-        fetchResumeAnalysis();
-
-        return () => {
-            cancelled = true;
-        };
-
-    }, [userId, profile?.careerGoal]);
 
 
     // =========================
@@ -274,6 +276,7 @@ function UserDashboard() {
 
         localStorage.removeItem("user");
         localStorage.removeItem("userId");
+        localStorage.removeItem("resumeAnalysis");
 
         navigate("/login");
 
