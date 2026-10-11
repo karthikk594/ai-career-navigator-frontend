@@ -1,11 +1,7 @@
 import axios from "axios";
 
-
 const API = axios.create({
-
-    baseURL:"http://localhost:8080/api"
-
+    baseURL:"https://ai-career-navigator-backend-xa04.onrender.com/api"
 });
-
 
 export default API;
